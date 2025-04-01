@@ -4,6 +4,10 @@ from inference import generate_map
 import socket
 import os
 import csv
+from collections import Counter
+from nbtlib import nbt
+from data_preprocessor import preprocess_data  # 导入独立的数据预处理模块
+
 
 def get_local_ip() -> str:
     s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
@@ -42,15 +46,34 @@ def train_and_generate(input_data_folder, config_file, description, epochs, lear
     generate_map(model_path, description)
     return '生成的地图已保存为 generated_map.nbt'
 
-def preprocess_data(input_data_folder, mca_file, output_folder):
-    # 这里添加预处理逻辑
-    if mca_file:
-        # 处理上传的 .mca 文件
-        pass
-    if input_data_folder:
-        # 处理数据文件夹中的 .mca 文件
-        pass
-    return f"数据已预处理并保存到 {output_folder}"
+def load_and_preview(folders):
+    # 只显示文件夹名称，而不是完整路径
+    folder_list = [os.path.basename(f) for f in folders]
+    return {"folders": folder_list}, gr.update(choices=folder_list)
+
+def update_mca_list(selected_folder, folders):
+    # 根据选择的文件夹名称找到对应的完整路径
+    full_path = next(f for f in folders if os.path.basename(f) == selected_folder)
+    # 确保 full_path 是文件夹路径，而不是文件路径
+    if os.path.isfile(full_path):
+        full_path = os.path.dirname(full_path)
+    mca_files = [f for f in os.listdir(full_path) if f.endswith('.mca')]
+    return gr.update(choices=mca_files)
+
+def show_mca_info(selected_mca, selected_folder):
+    try:
+        region_file = nbt.load(os.path.join(selected_folder, selected_mca))
+        return {
+            "文件名": selected_mca,
+            "区块数量": len(region_file['Chunks']),
+            "方块类型统计": Counter(
+                block['id'].value 
+                for chunk in region_file['Chunks'] 
+                for block in chunk['Blocks']
+            )
+        }
+    except Exception as e:
+        return {"错误": str(e)}
 
 def launch_ui():
     local_ip = get_local_ip()
@@ -59,13 +82,33 @@ def launch_ui():
     with gr.Blocks() as demo:
         with gr.Column():
             with gr.Tab("数据预处理"):
-                data_folder = gr.Textbox(label="数据文件夹路径")
-                mca_file_upload = gr.File(label="上传 .mca 文件")
+                data_folders = gr.File(label="选择训练集文件夹", file_count="directory", file_types=[".mca"], height=100)
+                folder_selector = gr.Dropdown(label="已加载文件夹", interactive=True)
+                mca_selector = gr.Dropdown(label="选择.mca文件", interactive=True)
+                preview_area = gr.JSON(label="文件预览信息")
                 processed_output_folder = gr.Textbox(label="处理后训练集输出地址")
                 preprocess_button = gr.Button("预处理数据")
                 preprocess_output = gr.Textbox(label="预处理结果")
 
-                preprocess_button.click(preprocess_data, inputs=[data_folder, mca_file_upload, processed_output_folder], outputs=preprocess_output)
+                data_folders.change(
+                    load_and_preview,
+                    inputs=data_folders,
+                    outputs=[gr.JSON(visible=False), folder_selector]
+                )
+
+                folder_selector.change(
+                    update_mca_list,
+                    inputs=[folder_selector, data_folders],
+                    outputs=mca_selector
+                )
+
+                mca_selector.change(
+                    show_mca_info,
+                    inputs=[mca_selector, folder_selector],
+                    outputs=preview_area
+                )
+
+                preprocess_button.click(preprocess_data, inputs=[data_folders, processed_output_folder], outputs=preprocess_output)
 
             with gr.Tab("训练参数"):
                 config_file = gr.Dropdown(label="选择配置文件", choices=get_flagged_csv_files())
@@ -81,10 +124,11 @@ def launch_ui():
                 generate_button = gr.Button("开始生成")
                 generate_output = gr.Textbox(label="生成结果")
 
-        train_button.click(train_and_generate, inputs=[data_folder, config_file, description, epochs, learning_rate, batch_size], outputs=train_output)
+        train_button.click(train_and_generate, inputs=[data_folders, config_file, description, epochs, learning_rate, batch_size], outputs=train_output)
         generate_button.click(generate_map, inputs=[model_path, description], outputs=generate_output)
 
     demo.launch(server_name=local_ip)
 
 if __name__ == "__main__":
     launch_ui()
+
