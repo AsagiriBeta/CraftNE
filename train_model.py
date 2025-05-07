@@ -5,21 +5,19 @@ from data_loader import MinecraftDataLoader
 import os
 
 class CraftNEModel(nn.Module):
-    def __init__(self):
+    def __init__(self, cube_size=8):
         super(CraftNEModel, self).__init__()
+        self.cube_size = cube_size
+        # 输入通道改为1（单色立方体），输出通道为类别数
         self.conv1 = nn.Conv3d(1, 32, kernel_size=3, stride=1, padding=1)
         self.conv2 = nn.Conv3d(32, 64, kernel_size=3, stride=1, padding=1)
-        self.fc1 = nn.Linear(64 * 8 * 8 * 8, 256)
-        self.fc2 = nn.Linear(256, 128)
-        self.fc3 = nn.Linear(128, 3)
+        # 输出为相同尺寸的立方体
+        self.final_conv = nn.Conv3d(64, 1, kernel_size=1)  # 1通道输出
 
     def forward(self, x):
         x = torch.relu(self.conv1(x))
         x = torch.relu(self.conv2(x))
-        x = x.view(x.size(0), -1)
-        x = torch.relu(self.fc1(x))
-        x = torch.relu(self.fc2(x))
-        x = self.fc3(x)
+        x = self.final_conv(x)
         return x
 
 def train_model(data_folder, model_save_path, epochs=10, learning_rate=0.001, batch_size=32):
@@ -31,7 +29,12 @@ def train_model(data_folder, model_save_path, epochs=10, learning_rate=0.001, ba
     
     data_loader = MinecraftDataLoader(data_folder)
     data = data_loader.load_data()
-    dataset = DataLoader(data, batch_size=batch_size, shuffle=True)
+    
+    # 添加collate函数将列表转换为张量
+    def collate_fn(batch):
+        return torch.tensor(batch, dtype=torch.float32)
+    
+    dataset = DataLoader(data, batch_size=batch_size, shuffle=True, collate_fn=collate_fn)
     
     model = CraftNEModel().to(device)
     criterion = nn.MSELoss()
@@ -39,11 +42,10 @@ def train_model(data_folder, model_save_path, epochs=10, learning_rate=0.001, ba
     
     for epoch in range(epochs):
         for batch in dataset:
-            # 将输入数据转换为3D张量并移动到设备
-            inputs = torch.tensor([block['position'] for block in batch], dtype=torch.float32).to(device)
-            inputs = inputs.unsqueeze(1)  # 添加通道维度
+            inputs = batch.unsqueeze(1).to(device)
             outputs = model(inputs)
-            loss = criterion(outputs, inputs.squeeze(1))
+            # 使用MSE损失比较整个立方体结构
+            loss = criterion(outputs, inputs)  # 直接比较输入输出结构
             optimizer.zero_grad()
             loss.backward()
             optimizer.step()

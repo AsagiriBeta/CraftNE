@@ -10,23 +10,30 @@ def generate_map(model_path, description):
     model.load_state_dict(torch.load(model_path))
     model.eval()
     
-    # 根据描述生成地图的逻辑
-    # 这里假设描述是一个字符串，模型会根据描述生成一个地图
-    # 实际实现需要更复杂的逻辑
+    # 根据描述生成地图的逻辑（简化版）
     print(f"根据描述 '{description}' 生成地图")
-    generated_blocks = model(torch.randn(100, 3).to(device))
     
-    # 将生成的方块保存为NBT文件
+    # 生成随机输入（实际应根据描述编码生成）
+    with torch.no_grad():
+        latent_input = torch.randn(1, 1, 8, 8, 8).to(device)
+        output_cube = model(latent_input).squeeze().cpu().numpy()
+    
+    # 转换为NBT格式
     nbt_file = nbtlib.File()
-    nbt_file['blocks'] = nbtlib.List([nbtlib.Compound({
-        'id': nbtlib.String('minecraft:stone'),
-        'state': nbtlib.Int(0),
-        'x': nbtlib.Int(x),
-        'y': nbtlib.Int(y),
-        'z': nbtlib.Int(z)
-    }) for x, y, z in generated_blocks.cpu().numpy()])
+    blocks = []
+    for x in range(8):
+        for y in range(8):
+            for z in range(8):
+                # 将连续值转换为离散块类型
+                block_value = output_cube[x, y, z]
+                if block_value > 0.5:  # 阈值分割
+                    blocks.append(nbtlib.Compound({
+                        'id': nbtlib.String('minecraft:stone'),
+                        'state': nbtlib.Int(0),
+                        'x': nbtlib.Int(x),
+                        'y': nbtlib.Int(y),
+                        'z': nbtlib.Int(z)
+                    }))
     
+    nbt_file['Blocks'] = nbtlib.List(blocks)
     nbt_file.save('generated_map.nbt')
-
-if __name__ == "__main__":
-    generate_map('models/craftne_model.pth', '生成一个山洞')
