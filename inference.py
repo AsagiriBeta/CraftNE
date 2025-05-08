@@ -1,7 +1,9 @@
 import torch
 import nbtlib
 from train_model import CraftNEModel
+import json
 
+# 修改生成逻辑以支持方块映射
 def generate_map(model_path, description):
     # 选择设备
     device = torch.device("cuda" if torch.cuda.is_available() else "mps" if torch.backends.mps.is_available() else "cpu")
@@ -18,17 +20,22 @@ def generate_map(model_path, description):
         latent_input = torch.randn(1, 1, 8, 8, 8).to(device)
         output_cube = model(latent_input).squeeze().cpu().numpy()
     
-    # 转换为NBT格式
+    # 加载方块映射
+    with open('block_mapping.json') as f:  # 需要预先准备完整映射文件
+        block_map = json.load(f)
+    
+    # 转换为NBT格式时使用实际方块ID
     nbt_file = nbtlib.File()
     blocks = []
     for x in range(8):
         for y in range(8):
             for z in range(8):
-                # 将连续值转换为离散块类型
                 block_value = output_cube[x, y, z]
-                if block_value > 0.5:  # 阈值分割
+                if block_value > 0.5:
+                    # 查找最接近的方块ID
+                    block_id = find_closest_block(block_value, block_map)
                     blocks.append(nbtlib.Compound({
-                        'id': nbtlib.String('minecraft:stone'),
+                        'id': nbtlib.String(block_id),
                         'state': nbtlib.Int(0),
                         'x': nbtlib.Int(x),
                         'y': nbtlib.Int(y),

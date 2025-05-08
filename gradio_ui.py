@@ -3,12 +3,13 @@ from train_model import train_model
 from inference import generate_map
 import socket
 import os
-import csv
+import json
+import csv  # 新增: 导入csv模块解决DictReader引用问题
 from collections import Counter
 from nbtlib import nbt
-from data_preprocessor import preprocess_data  # 导入独立的数据预处理模块
-from MTDCmca import process_files  # 新增: 导入解压处理模块
-import os
+from data_preprocessor import preprocess_data
+from MTDCmca import process_files
+from data_loader import BLOCK_ID_MAP  # 新增导入方块ID映射表
 
 
 def get_local_ip() -> str:
@@ -86,11 +87,10 @@ def load_and_preview(folders):
     
     if folders:
         for folder in folders:
-            # 统一处理为路径字符串（兼容不同平台）
             folder_path = folder if isinstance(folder, str) else folder.name
             
-            # 递归查找文件夹下所有.mca文件
-            for root, _, filenames in os.walk(folder_path):
+            # 修改点1：添加str()类型转换
+            for root, _, filenames in os.walk(str(folder_path)):
                 for filename in filenames:
                     if filename.endswith('.mca'):
                         full_path = os.path.join(root, filename)
@@ -106,66 +106,83 @@ def load_and_preview(folders):
 def launch_ui():
     local_ip = get_local_ip()
     print(f"Web UI 管理地址: http://{local_ip}:7860")
+    
+    project_root = os.path.dirname(os.path.abspath(__file__))
+    data_folder = os.path.join(project_root, 'data')
 
     with gr.Blocks() as demo:
         with gr.Column():
-            # 新增: MCA 解压标签页 (移动到最前面)
-            with gr.Tab("MCA 解压"):
-                mca_upload = gr.File(
-                    label="上传 MCA 文件（可多选）",
-                    file_count="multiple",
-                    file_types=[".mca"],
-                    height=100
-                )
-                output_dir = gr.Textbox(label="输出目录")
-                convert_json = gr.Checkbox(label="生成 JSON 文件", value=False)
-                threads = gr.Slider(minimum=1, maximum=16, step=1, value=4, label="线程数")
+            # 新增：解压处理标签页（移动到第一个位置）
+            with gr.Tab("解压处理"):
+                gr.Markdown("### MCA文件解压与JSON转换")
+                mca_files_input = gr.Files(label="上传MCA文件（可多选）", file_types=[".mca"])
+                output_dir_input = gr.Textbox(label="输出目录", value=os.path.join(project_root, 'data'))
+                convert_json_checkbox = gr.Checkbox(label="转换为JSON格式", value=True)
+                threads_slider = gr.Slider(minimum=1, maximum=8, step=1, value=4, label="并发线程数")
                 decompress_button = gr.Button("开始解压")
                 decompress_output = gr.Textbox(label="解压结果")
 
                 decompress_button.click(
-                    lambda files, out_dir, json_flag, thread_num: decompress_mca(
-                        files, out_dir, json_flag, thread_num
-                    ),
-                    inputs=[mca_upload, output_dir, convert_json, threads],
+                    fn=decompress_mca,
+                    inputs=[mca_files_input, output_dir_input, convert_json_checkbox, threads_slider],
                     outputs=decompress_output
                 )
-
-            # 数据预处理标签页 (原位置保持不变)
+            
+            # 数据预处理标签页（原第一个位置）
             with gr.Tab("数据预处理"):
-                data_files = gr.File(
-                    label="加载包含.mca的文件夹",
-                    file_count="directory",
-                    file_types=None,
-                    height=100
-                )
-                mca_selector = gr.Dropdown(label="选择.mca文件", interactive=True)
-                preview_area = gr.JSON(label="文件预览信息")
-                processed_output_folder = gr.Textbox(label="处理后训练集输出地址")
-                preprocess_button = gr.Button("预处理数据")
-                preprocess_output = gr.Textbox(label="预处理结果")
+                gr.Markdown("### JSON数据预览")
+                with gr.Row():
+                    folder_selector = gr.Dropdown(  # 修改：改为文件夹选择器
+                        label="选择包含JSON文件的文件夹",
+                        choices=get_subfolders(data_folder),
+                        value=get_subfolders(data_folder)[0] if get_subfolders(data_folder) else None,
+                        interactive=True
+                    )
+                    refresh_btn = gr.Button("🔄", size="sm")  # 新增：刷新按钮
+                    
+                preview_area = gr.JSON(label="方块类型统计结果")
 
-                data_files.change(
-                    load_and_preview,
-                    inputs=data_files,
-                    outputs=[gr.JSON(visible=False), mca_selector]
+                # 绑定文件夹选择器和预览区域
+                folder_selector.change(
+                    fn=load_json_preview,
+                    inputs=folder_selector,
+                    outputs=preview_area
                 )
+                
+                # 新增：刷新按钮功能
+                refresh_btn.click(
+                    fn=lambda: gr.update(choices=get_subfolders(data_folder)),
+                    outputs=folder_selector
+                )
+                
+                # 初始化加载默认文件夹的统计数据
+                demo.load(
+                    load_json_preview,
+                    outputs=preview_area
+                )
+                
+                processed_output_folder = gr.Textbox(
+                    label="训练集输出地址", 
+                    value=os.path.join(project_root, 'processed_data')
+                )
+                preprocess_button = gr.Button("执行预处理")
+                preprocess_output = gr.Textbox(label="处理结果")
 
-                mca_selector.change(
-                    show_mca_info,
-                    inputs=[mca_selector],  # 删除: , data_files
+                demo.load(
+                    load_json_preview,
                     outputs=preview_area
                 )
 
                 preprocess_button.click(
-                    lambda files, output: preprocess_data(
-                        [f.name for f in files] if isinstance(files, list) else [],  # 修改为提取文件对象的实际路径
-                        output
+                    lambda output: preprocess_data(
+                        [os.path.join(project_root, 'data')],
+                        output or os.path.join(project_root, 'processed_data')
                     ),
-                    inputs=[data_files, processed_output_folder],
+                    inputs=processed_output_folder,
                     outputs=preprocess_output
                 )
 
+            # 训练参数标签页（原第二个位置）
             with gr.Tab("训练参数"):
                 config_file = gr.Dropdown(label="选择配置文件", choices=get_flagged_csv_files())
                 description = gr.Textbox(label="描述")
@@ -175,40 +192,153 @@ def launch_ui():
                 train_button = gr.Button("开始训练")
                 train_output = gr.Textbox(label="训练结果")
 
+            # 推理部署标签页（原第三个位置）
             with gr.Tab("推理部署"):
                 model_path = gr.Textbox(label="模型路径", value="models/craftne_model.pth")
                 generate_button = gr.Button("开始生成")
                 generate_output = gr.Textbox(label="生成结果")
 
-    demo.launch(server_name=local_ip)
+        demo.launch(server_name=local_ip)
 
 
 # 新增: 解压处理函数
 def decompress_mca(mca_files, output_dir, convert_json, threads):
     if not mca_files:
         return "未选择任何 MCA 文件"
-    if not output_dir:
-        return "未指定输出目录"
-    if not os.path.isdir(output_dir):
-        os.makedirs(output_dir, exist_ok=True)
+    
+    project_root = os.path.dirname(os.path.abspath(__file__))
+    default_output_base = os.path.join(project_root, 'data')  # 主项目data目录
+    
+    results = []
+    
+    if not output_dir:  # 自动路径生成功能
+        os.makedirs(default_output_base, exist_ok=True)  # 确保基础目录存在
+        
+        for mca_file in mca_files:
+            # 修改点：强制转换为字符串确保路径类型正确
+            mca_filename = os.path.basename(str(mca_file.name))  # 添加str()类型转换
+            mca_name = os.path.splitext(mca_filename)[0]  # 去除.mca扩展名
+            specific_output_dir = os.path.join(default_output_base, mca_name)
+            
+            try:
+                os.makedirs(specific_output_dir, exist_ok=True)  # 创建独立子文件夹
+                
+                # 单文件处理逻辑（修改为传递具体输出路径）
+                mca_path = str(mca_file.name)  # 统一路径类型
+                elapsed = process_files([mca_path], specific_output_dir, convert_json, threads)
+                
+                # 新增：递归统计所有子目录中的JSON文件
+                json_count = 0
+                for root, _, files in os.walk(specific_output_dir):  # 类型已修正
+                    json_count += sum(1 for f in files if f.endswith('.json'))
+                
+                results.append(f"{mca_name}: 耗时 {elapsed:.2f} 秒 -> 输出至 {specific_output_dir}\n成功生成 {json_count} 个 JSON 文件")
+            except Exception as e:
+                results.append(f"{mca_name}: 解压失败 - {str(e)}")
+        
+        return "\n".join(results)
+    
+    # 用户自定义路径处理逻辑保持兼容性
+    else:
+        if not os.path.isdir(output_dir):
+            os.makedirs(output_dir, exist_ok=True)
+        
+        try:
+            mca_paths = [f.name for f in mca_files]
+            # 修改点：强制转换output_dir为字符串确保类型安全
+            elapsed = process_files(mca_paths, str(output_dir), convert_json, threads)
+            
+            # 修改：精确统计每个MCA文件对应子文件夹的JSON文件
+            json_count = 0
+            for mca_path in mca_paths:
+                mca_filename = os.path.basename(mca_path)
+                mca_name = os.path.splitext(mca_filename)[0]  # 去除.mca扩展名
+                # 修改点：对路径拼接进行类型强制转换
+                specific_output_dir = os.path.join(str(output_dir), mca_name)
+                
+                if os.path.exists(specific_output_dir):
+                    for root, _, files in os.walk(str(specific_output_dir)):
+                        json_count += sum(1 for f in files if f.endswith('.json'))
+            
+            result = f"解压完成，耗时: {elapsed:.2f} 秒\n输出目录: {output_dir}"
+            if convert_json:
+                result += f"\n成功生成 {json_count} 个 JSON 文件"
+            return result
+        except Exception as e:
+            return f"解压失败: {str(e)}"
 
-    try:
-        mca_paths = [f.name for f in mca_files]
-        elapsed = process_files(mca_paths, output_dir, convert_json, threads)
-        result = f"解压完成，耗时: {elapsed:.2f} 秒\n输出目录: {output_dir}"
-        # 如果启用了JSON转换，检查转换结果
-        if convert_json:
-            json_count = len([f for f in os.listdir(output_dir) if f.endswith('.json')])
-            result += f"\n成功生成 {json_count} 个 JSON 文件"
-        return result
-    except Exception as e:
-        return f"解压失败: {str(e)}"
+# 新增：将load_json_preview定义移到所有UI组件定义之前
+# 新增：获取JSON文件列表函数
+def get_json_files(folder):
+    if not os.path.exists(folder):
+        return []
+    json_files = []
+    for root, _, files in os.walk(folder):
+        for file in files:
+            if file.endswith('.json'):
+                json_files.append(os.path.join(root, file))
+    return sorted(json_files)
 
+# 新增：获取指定文件夹下的所有子文件夹名称
+def get_subfolders(folder):
+    """新增：获取指定文件夹下的所有子文件夹名称"""
+    if not os.path.exists(folder):
+        return []
+    subfolders = []
+    for name in os.listdir(folder):
+        full_path = os.path.join(folder, name)
+        if os.path.isdir(full_path):
+            subfolders.append(name)
+    return sorted(subfolders)
+
+# 修改：更新JSON预览函数，适配新版数据结构
+def load_json_preview(folder_name=None):
+    """修正JSON预览函数适配新版数据结构"""
+    project_root = os.path.dirname(os.path.abspath(__file__))
+    data_folder = os.path.join(project_root, 'data')
+    
+    if not folder_name:
+        subfolders = get_subfolders(data_folder)
+        if not subfolders:
+            return {"提示": "data文件夹中暂无子文件夹"}
+        folder_name = subfolders[0]
+    
+    folder_path = os.path.join(data_folder, folder_name)
+    
+    if not os.path.exists(folder_path) or not os.path.isdir(folder_path):
+        return {"错误": f"文件夹不存在: {folder_path}"}
+    
+    block_counter = Counter()
+    file_count = 0
+    
+    for root, _, files in os.walk(folder_path):
+        for file in files:
+            if file.endswith('.json'):
+                file_path = os.path.join(root, file)
+                try:
+                    with open(file_path, 'r', encoding='utf-8') as f:
+                        content = json.load(f)
+                    
+                    # 关键修改：正确遍历Level.Sections下的Blocks字段
+                    if content.get("Level", {}).get("Sections"):
+                        for section in content["Level"]["Sections"]:
+                            blocks = section.get("Blocks", [])
+                            if blocks:
+                                block_names = [BLOCK_ID_MAP.get(b, "minecraft:air") for b in blocks]
+                                block_counter.update(block_names)
+                    
+                    file_count += 1
+                except Exception as e:
+                    print(f"读取文件失败: {file_path}, 错误: {str(e)}")
+    
+    return {
+        "文件夹路径": folder_path,
+        "统计的JSON文件数量": file_count,
+        "方块类型统计": dict(block_counter)
+    }
 
 if __name__ == "__main__":
     launch_ui()
-
-
 
 
 

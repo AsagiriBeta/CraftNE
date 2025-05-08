@@ -15,7 +15,12 @@ import tempfile
 def nbt_to_python(tag):
     """增强版NBT转换函数，支持更多数据类型"""
     if isinstance(tag, Compound):
-        return {key: nbt_to_python(value) for key, value in tag.items()}
+        result = {}
+        for key, value in tag.items():
+            # 处理特殊键名
+            clean_key = str(key)  # 确保键是字符串类型
+            result[clean_key] = nbt_to_python(value)
+        return result
     elif isinstance(tag, List):
         return [nbt_to_python(item) for item in tag]
     elif isinstance(tag, (LongArray, nbtlib.tag.ByteArray, nbtlib.tag.IntArray)):
@@ -49,16 +54,24 @@ def convert_chunk_to_json(dat_path, json_path):
 
 # ---------------------- 多线程解压处理器 ----------------------
 class ChunkProcessor:
+    # 修改点：在ChunkProcessor初始化时强制转换路径类型
     def __init__(self, output_root, convert_json, max_workers=4):
-        self.output_root = output_root
+        self.output_root = str(output_root)  # 强制转换为字符串类型
         self.convert_json = convert_json
         self.executor = ThreadPoolExecutor(max_workers=max_workers)
         self.futures = []
 
     # 新增process_mca方法处理单个MCA文件
-    def process_mca(self, mca_file_path):
+    def process_mca(self, mca_file_path, new_output_dir=None):
         """处理单个MCA文件"""
-        return decompress_mca_file(mca_file_path, self.output_root, self.convert_json)
+        if new_output_dir:
+            self.output_root = new_output_dir  # 使用新参数名避免名称冲突
+        # 修改点：使用文件名（不带.mca）作为文件夹名
+        mca_filename = os.path.basename(mca_file_path)
+        mca_name = os.path.splitext(mca_filename)[0]  # 去除.mca扩展名
+        specific_output_dir = os.path.join(self.output_root, mca_name)
+        os.makedirs(specific_output_dir, exist_ok=True)
+        return decompress_mca_file(mca_file_path, specific_output_dir, self.convert_json)
 
     def process_chunk(self, x_global, z_global, decompressed_data):
         """处理单个区块"""
@@ -123,10 +136,12 @@ def decompress_mca_file(mca_file_path, output_directory, convert_to_json):
             header = f.read(8192)
             for chunk_index in range(1024):
                 x_local = chunk_index % 32
-                z_local = chunk_index // 32
+                z_local = chunk_index // 32  # 原为 chunk_index // 32，现保持正确计算
                 x_global = x_region * 32 + x_local
-                z_global = z_region * 32 + z_local
-
+                z_global = z_region * 32 + z_local  # 修改：使用正确维度计算
+                
+                # 增加坐标验证日志
+                print(f"处理区块: 索引={chunk_index} 本地坐标=({x_local},{z_local}) 全局坐标=({x_global},{z_global})")
                 entry_offset = chunk_index * 4
                 entry = header[entry_offset:entry_offset+4]
                 offset = (entry[0] << 16 | entry[1] << 8 | entry[2]) * 4096
@@ -163,6 +178,22 @@ def decompress_mca_file(mca_file_path, output_directory, convert_to_json):
         elapsed = time.perf_counter() - start_time
     
     return elapsed 
+
+def decompress_mca(mca_paths, output_root, convert_json, threads):
+    start_time = time.perf_counter()
+    processor = ChunkProcessor(output_root, convert_json, max_workers=threads)
+    
+    for mca_path in mca_paths:
+        print(f"\n正在处理文件: {mca_path}")
+        # 使用原始文件名作为子文件夹名（保留.mca扩展名）
+        mca_filename = os.path.basename(mca_path)
+        specific_output_dir = os.path.join(output_root, mca_filename)  # 修改点：直接使用文件名创建子文件夹
+        os.makedirs(specific_output_dir, exist_ok=True)
+        
+        processor.process_mca(mca_path, specific_output_dir)  # 修改点：传递具体输出路径参数
+    
+    processor.wait_completion()
+    return time.perf_counter() - start_time
 
 def select_mca_files():
     file_dialog_root = Tk()  # 重命名避免变量遮蔽
@@ -214,10 +245,10 @@ if __name__ == "__main__":
         mca_files = []
         # 处理目录
         if args.dir:
-            if not os.path.isdir(args.dir):
+            if not os.path.isdir(str(args.dir)):
                 print(f"错误：目录不存在 {args.dir}")
                 exit(1)
-            for dir_root, _, dir_files in os.walk(args.dir):
+            for dir_root, _, dir_files in os.walk(str(args.dir)):
                 for filename in dir_files:
                     if re.match(r"r\.-?\d+\.-?\d+\.mca", filename):
                         mca_files.append(os.path.join(dir_root, filename))

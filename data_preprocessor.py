@@ -1,7 +1,6 @@
 import os
 import json
-import csv
-from io import TextIOBase
+from typing import TextIO  # 修正导入路径
 from data_loader import MinecraftDataLoader
 
 def preprocess_data(folders, output_folder, output_format='json'):
@@ -29,7 +28,7 @@ def preprocess_data(folders, output_folder, output_format='json'):
     
     # 数据持久化存储
     if output_format == 'json':
-        with open(output_file, 'w', encoding='utf-8') as f:  # type: TextIOBase
+        with open(output_file, 'w', encoding='utf-8') as f:  # type: TextIO
             json.dump(all_data, f, indent=2)
     elif output_format == 'csv':
         raise ValueError("CSV格式不支持当前数据结构，请使用JSON格式")
