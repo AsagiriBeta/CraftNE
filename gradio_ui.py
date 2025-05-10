@@ -7,7 +7,6 @@ import json
 import csv  # 新增: 导入csv模块解决DictReader引用问题
 from collections import Counter
 from nbtlib import nbt
-from data_preprocessor import preprocess_data
 from MTDCmca import process_files
 from data_loader import BLOCK_ID_MAP  # 新增导入方块ID映射表
 
@@ -128,8 +127,8 @@ def launch_ui():
                     outputs=decompress_output
                 )
             
-            # 数据预处理标签页（原第一个位置）
-            with gr.Tab("数据预处理"):
+            # 修改点：重命名标签页并移除预处理相关组件
+            with gr.Tab("训练"):  # 原数据预处理标签页重命名为数据预览
                 gr.Markdown("### JSON数据预览")
                 with gr.Row():
                     folder_selector = gr.Dropdown(  # 修改：改为文件夹选择器
@@ -154,36 +153,9 @@ def launch_ui():
                     fn=lambda: gr.update(choices=get_subfolders(data_folder)),
                     outputs=folder_selector
                 )
-                
-                # 初始化加载默认文件夹的统计数据
-                demo.load(
-                    load_json_preview,
-                    outputs=preview_area
-                )
-                
-                processed_output_folder = gr.Textbox(
-                    label="训练集输出地址", 
-                    value=os.path.join(project_root, 'processed_data')
-                )
-                preprocess_button = gr.Button("执行预处理")
-                preprocess_output = gr.Textbox(label="处理结果")
 
-                demo.load(
-                    load_json_preview,
-                    outputs=preview_area
-                )
-
-                preprocess_button.click(
-                    lambda output: preprocess_data(
-                        [os.path.join(project_root, 'data')],
-                        output or os.path.join(project_root, 'processed_data')
-                    ),
-                    inputs=processed_output_folder,
-                    outputs=preprocess_output
-                )
-
-            # 训练参数标签页（原第二个位置）
-            with gr.Tab("训练参数"):
+                # 新增训练参数模块（原训练参数标签页内容迁移至此）
+                gr.Markdown("### 训练参数")
                 config_file = gr.Dropdown(label="选择配置文件", choices=get_flagged_csv_files())
                 description = gr.Textbox(label="描述")
                 epochs = gr.Slider(minimum=1, maximum=100, step=1, label="训练轮数 (Epochs)")
@@ -192,7 +164,13 @@ def launch_ui():
                 train_button = gr.Button("开始训练")
                 train_output = gr.Textbox(label="训练结果")
 
-            # 推理部署标签页（原第三个位置）
+                # 修改点：将未定义的input_data_files替换为folder_selector.value
+                train_button.click(
+                    fn=train_and_generate,
+                    inputs=[folder_selector, config_file, description, epochs, learning_rate, batch_size],
+                    outputs=train_output
+                )
+
             with gr.Tab("推理部署"):
                 model_path = gr.Textbox(label="模型路径", value="models/craftne_model.pth")
                 generate_button = gr.Button("开始生成")
@@ -339,15 +317,4 @@ def load_json_preview(folder_name=None):
 
 if __name__ == "__main__":
     launch_ui()
-
-
-
-
-
-
-
-
-
-
-
 
