@@ -1,4 +1,0 @@
-gradio~=5.23.2
-torch~=2.6.0
-nbtlib~=2.0.4
-mcapy~=0.9.1
