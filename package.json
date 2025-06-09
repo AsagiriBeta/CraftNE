@@ -1,0 +1,31 @@
+{
+  "name": "craftne",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "build": "vue-tsc && vite build",
+    "dev": "vite",
+    "preview": "vite preview",
+    "tauri": "tauri",
+    "tauri:build": "tauri build",
+    "tauri:dev": "tauri dev"
+  },
+  "dependencies": {
+    "@tauri-apps/api": "^2.5.0",
+    "@tauri-apps/plugin-shell": "^2.0.0",
+    "vue": "^3.4.0",
+    "vue-router": "^4.3.0",
+    "pinia": "^2.1.0",
+    "element-plus": "^2.6.0",
+    "@element-plus/icons-vue": "^2.3.0"
+  },
+  "devDependencies": {
+    "@tauri-apps/cli": "^2.5.0",
+    "@vitejs/plugin-vue": "^5.0.0",
+    "typescript": "^5.0.0",
+    "vue-tsc": "^2.0.0",
+    "vite": "^5.0.0",
+    "@types/node": "^20.0.0"
+  }
+}
