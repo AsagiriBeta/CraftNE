@@ -5,35 +5,31 @@
         <div class="header-content">
           <h1 class="app-title">
             <el-icon><Cpu /></el-icon>
-            CraftNE
+            CraftNE - Minecraft AI Toolkit
           </h1>
-          <div class="header-subtitle">Minecraft AI Development Toolkit</div>
+          <div class="header-actions">
+            <el-button @click="openSettings" type="primary" plain>
+              <el-icon><Setting /></el-icon>
+              Settings
+            </el-button>
+          </div>
         </div>
       </el-header>
       
       <el-container>
-        <el-aside width="250px" class="sidebar">
+        <el-aside width="200px" class="sidebar">
           <el-menu
-            :default-active="$route.path"
-            router
-            mode="vertical"
-            class="nav-menu"
+            :default-active="activeTab"
+            @select="handleMenuSelect"
+            class="sidebar-menu"
           >
-            <el-menu-item index="/">
-              <el-icon><House /></el-icon>
-              <span>首页</span>
-            </el-menu-item>
-            <el-menu-item index="/map">
-              <el-icon><MapLocation /></el-icon>
-              <span>地图生成</span>
-            </el-menu-item>
-            <el-menu-item index="/skin">
+            <el-menu-item index="skin">
               <el-icon><Avatar /></el-icon>
-              <span>皮肤生成</span>
+              <span>Skin Generator</span>
             </el-menu-item>
-            <el-menu-item index="/texture">
-              <el-icon><Picture /></el-icon>
-              <span>材质生成</span>
+            <el-menu-item index="item">
+              <el-icon><Box /></el-icon>
+              <span>Item Texture</span>
             </el-menu-item>
           </el-menu>
         </el-aside>
@@ -47,7 +43,21 @@
 </template>
 
 <script setup lang="ts">
-import { House, MapLocation, Avatar, Picture, Cpu } from "@element-plus/icons-vue";
+import { ref } from 'vue'
+import { useRouter } from 'vue-router'
+import { Cpu, Setting, Avatar, Box } from '@element-plus/icons-vue'
+
+const router = useRouter()
+const activeTab = ref('skin')
+
+const handleMenuSelect = (key: string) => {
+  activeTab.value = key
+  router.push(`/${key}`)
+}
+
+const openSettings = () => {
+  // 打开设置页面
+}
 </script>
 
 <style scoped>
@@ -65,8 +75,9 @@ import { House, MapLocation, Avatar, Picture, Cpu } from "@element-plus/icons-vu
 
 .header-content {
   display: flex;
+  justify-content: space-between;
   align-items: center;
-  gap: 15px;
+  width: 100%;
 }
 
 .app-title {
@@ -75,25 +86,21 @@ import { House, MapLocation, Avatar, Picture, Cpu } from "@element-plus/icons-vu
   align-items: center;
   gap: 10px;
   font-size: 24px;
-  font-weight: bold;
-}
-
-.header-subtitle {
-  font-size: 14px;
-  opacity: 0.8;
+  font-weight: 600;
 }
 
 .sidebar {
-  background-color: #f5f7fa;
-  border-right: 1px solid #e4e7ed;
+  background: #f5f5f5;
+  border-right: 1px solid #e0e0e0;
 }
 
-.nav-menu {
+.sidebar-menu {
   border: none;
+  background: transparent;
 }
 
 .main-content {
+  background: #fafafa;
   padding: 20px;
-  background-color: #ffffff;
 }
 </style>

@@ -1,12 +1,12 @@
 <template>
-  <div class="skin-generator">
+  <div class="item-generator">
     <el-row :gutter="20">
       <el-col :span="12">
         <el-card class="generator-card">
           <template #header>
             <div class="card-header">
-              <span>Minecraft Skin Generator</span>
-              <el-tag type="info">64x64</el-tag>
+              <span>Item Texture Generator</span>
+              <el-tag type="success">32x32</el-tag>
             </div>
           </template>
           
@@ -15,7 +15,7 @@
               <label class="form-label">Model Path</label>
               <el-input
                 v-model="modelPath"
-                placeholder="Select skin generation model..."
+                placeholder="Select item texture model..."
                 readonly
               >
                 <template #append>
@@ -27,40 +27,53 @@
             </div>
             
             <div class="form-section">
+              <label class="form-label">Item Category</label>
+              <el-select v-model="itemCategory" placeholder="Select category" style="width: 100%">
+                <el-option label="Tools" value="tools" />
+                <el-option label="Weapons" value="weapons" />
+                <el-option label="Armor" value="armor" />
+                <el-option label="Blocks" value="blocks" />
+                <el-option label="Food" value="food" />
+                <el-option label="Materials" value="materials" />
+                <el-option label="Decorative" value="decorative" />
+              </el-select>
+            </div>
+            
+            <div class="form-section">
               <label class="form-label">Prompt</label>
               <el-input
                 v-model="prompt"
                 type="textarea"
                 :rows="4"
-                placeholder="Describe the skin you want to generate..."
+                placeholder="Describe the item texture you want to generate..."
                 maxlength="500"
                 show-word-limit
               />
             </div>
             
             <div class="form-section">
-              <label class="form-label">Advanced Settings</label>
+              <label class="form-label">Style Options</label>
               <el-row :gutter="10">
                 <el-col :span="12">
-                  <el-input-number
-                    v-model="steps"
-                    :min="1"
-                    :max="100"
-                    controls-position="right"
-                    style="width: 100%"
-                  />
-                  <div class="input-label">Inference Steps</div>
+                  <el-select v-model="textureStyle" placeholder="Style" style="width: 100%">
+                    <el-option label="Vanilla" value="vanilla" />
+                    <el-option label="Realistic" value="realistic" />
+                    <el-option label="Cartoon" value="cartoon" />
+                    <el-option label="Medieval" value="medieval" />
+                    <el-option label="Modern" value="modern" />
+                  </el-select>
+                  <div class="input-label">Texture Style</div>
                 </el-col>
                 <el-col :span="12">
-                  <el-input-number
-                    v-model="guidance"
+                  <el-slider
+                    v-model="detail"
                     :min="1"
-                    :max="20"
-                    :step="0.5"
-                    controls-position="right"
-                    style="width: 100%"
+                    :max="10"
+                    show-stops
+                    show-input
+                    :show-input-controls="false"
                   />
-                  <div class="input-label">Guidance Scale</div>
+                  <div class="input-label">Detail Level</div>
                 </el-col>
               </el-row>
             </div>
@@ -68,18 +81,18 @@
             <div class="action-buttons">
               <el-button
                 type="primary"
-                @click="generateSkin"
+                @click="generateTexture"
                 :loading="generating"
                 :disabled="!canGenerate"
                 size="large"
               >
                 <el-icon><Loading /></el-icon>
-                Generate Skin
+                Generate Texture
               </el-button>
               
               <el-button
                 v-if="generatedImage"
-                @click="saveSkin"
+                @click="saveTexture"
                 :icon="Download"
                 size="large"
               >
@@ -99,24 +112,26 @@
           <div class="preview-content">
             <div v-if="generating" class="loading-state">
               <el-icon class="is-loading"><Loading /></el-icon>
-              <p>Generating skin...</p>
+              <p>Generating texture...</p>
               <el-progress :percentage="progress" />
             </div>
             
             <div v-else-if="generatedImage" class="generated-result">
-              <div class="skin-preview">
-                <img :src="generatedImage" alt="Generated Skin" />
-                <div class="skin-info">
-                  <p><strong>Resolution:</strong> 64x64</p>
+              <div class="texture-preview">
+                <img :src="generatedImage" alt="Generated Texture" />
+                <div class="texture-info">
+                  <p><strong>Resolution:</strong> 32x32</p>
+                  <p><strong>Category:</strong> {{ itemCategory }}</p>
+                  <p><strong>Style:</strong> {{ textureStyle }}</p>
                   <p><strong>Generation Time:</strong> {{ generationTime }}s</p>
                 </div>
               </div>
             </div>
             
             <div v-else class="empty-state">
-              <el-icon><PictureFilled /></el-icon>
-              <p>No skin generated yet</p>
-              <p class="hint">Enter a prompt and click generate to create a Minecraft skin</p>
+              <el-icon><Box /></el-icon>
+              <p>No texture generated yet</p>
+              <p class="hint">Configure settings and generate an item texture</p>
             </div>
           </div>
         </el-card>
@@ -132,25 +147,26 @@ import {
   FolderOpened, 
   Download,
   Loading, 
-  PictureFilled 
+  Box 
 } from '@element-plus/icons-vue'
-import { useSkinStore } from '@/stores/skinStore'
+import { useItemStore } from '@/stores/itemStore'
 import { useModelManager } from '@/composables/useModelManager'
 
-const skinStore = useSkinStore()
-const { selectModelFile, generateSkin: callGenerateSkin } = useModelManager()
+const itemStore = useItemStore()
+const { selectModelFile, generateItemTexture } = useModelManager()
 
 const modelPath = ref('')
 const prompt = ref('')
-const steps = ref(20)
-const guidance = ref(7.5)
+const itemCategory = ref('')
+const textureStyle = ref('vanilla')
+const detail = ref(5)
 const generating = ref(false)
 const progress = ref(0)
 const generatedImage = ref('')
 const generationTime = ref(0)
 
 const canGenerate = computed(() => {
-  return modelPath.value && prompt.value.trim()
+  return modelPath.value && prompt.value.trim() && itemCategory.value
 })
 
 const selectModel = async () => {
@@ -165,32 +181,31 @@ const selectModel = async () => {
   }
 }
 
-const generateSkin = async () => {
+const generateTexture = async () => {
   if (!canGenerate.value) return
   
   generating.value = true
   progress.value = 0
   
   try {
-    // 模拟进度更新
     const progressInterval = setInterval(() => {
       if (progress.value < 90) {
-        progress.value += Math.random() * 20
+        progress.value += Math.random() * 15
       }
-    }, 500)
+    }, 400)
     
-    const result = await callGenerateSkin(prompt.value, modelPath.value)
+    const enhancedPrompt = `${prompt.value}, ${itemCategory.value}, ${textureStyle.value} style, detail level ${detail.value}`
+    const result = await generateItemTexture(enhancedPrompt, modelPath.value)
     
     clearInterval(progressInterval)
     progress.value = 100
     
     if (result.success && result.image_data) {
-      // 将字节数据转换为base64图像
       const base64 = btoa(String.fromCharCode(...result.image_data))
       generatedImage.value = `data:image/png;base64,${base64}`
       generationTime.value = result.generation_time
       
-      ElMessage.success('Skin generated successfully!')
+      ElMessage.success('Texture generated successfully!')
     } else {
       throw new Error(result.error_message || 'Generation failed')
     }
@@ -201,21 +216,20 @@ const generateSkin = async () => {
   }
 }
 
-const saveSkin = async () => {
+const saveTexture = async () => {
   if (!generatedImage.value) return
   
   try {
-    // 使用Tauri的文件保存对话框
-    await skinStore.saveSkin(generatedImage.value)
-    ElMessage.success('Skin saved successfully!')
+    await itemStore.saveTexture(generatedImage.value)
+    ElMessage.success('Texture saved successfully!')
   } catch (error) {
-    ElMessage.error('Failed to save skin')
+    ElMessage.error('Failed to save texture')
   }
 }
 </script>
 
 <style scoped>
-.skin-generator {
+.item-generator {
   height: 100%;
 }
 
@@ -281,15 +295,15 @@ const saveSkin = async () => {
   text-align: center;
 }
 
-.skin-preview img {
-  max-width: 256px;
-  max-height: 256px;
+.texture-preview img {
+  max-width: 200px;
+  max-height: 200px;
   image-rendering: pixelated;
   border: 2px solid #ddd;
   border-radius: 8px;
 }
 
-.skin-info {
+.texture-info {
   margin-top: 16px;
   text-align: left;
   color: #666;

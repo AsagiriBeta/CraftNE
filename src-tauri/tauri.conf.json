@@ -4,8 +4,8 @@
   "version": "0.1.0",
   "identifier": "com.asagiribeta.craftne",
   "build": {
-    "beforeBuildCommand": "npm run build",
     "beforeDevCommand": "npm run dev",
+    "beforeBuildCommand": "npm run build",
     "devUrl": "http://localhost:1420",
     "frontendDist": "../dist"
   },
@@ -15,10 +15,10 @@
         "title": "CraftNE - Minecraft AI Toolkit",
         "width": 1200,
         "height": 800,
-        "resizable": true,
-        "fullscreen": false,
         "minWidth": 800,
-        "minHeight": 600
+        "minHeight": 600,
+        "resizable": true,
+        "fullscreen": false
       }
     ],
     "security": {
@@ -35,6 +35,9 @@
   "plugins": {
     "shell": {
       "open": true
+    },
+    "fs": {
+      "requireLiteralLeadingDot": true
     }
   }
 }
