@@ -1,0 +1,72 @@
+CraftNE/
+├── app/
+│   ├── __init__.py
+│   ├── models/
+│   │   ├── __init__.py
+│   │   ├── map_data.py
+│   │   ├── annotation.py
+│   │   └── training_job.py
+│   ├── views/
+│   │   ├── __init__.py
+│   │   ├── main.py
+│   │   ├── upload.py
+│   │   ├── annotation.py
+│   │   ├── generation.py
+│   │   └── api.py
+│   ├── services/
+│   │   ├── __init__.py
+│   │   ├── mca_parser.py
+│   │   ├── model_trainer.py
+│   │   └── obj_exporter.py
+│   ├── utils/
+│   │   ├── __init__.py
+│   │   ├── cache.py
+│   │   ├── decorators.py
+│   │   ├── error_handlers.py
+│   │   ├── logging_config.py
+│   │   ├── response.py
+│   │   └── validators.py
+│   ├── static/
+│   │   ├── css/
+│   │   │   └── style.css
+│   │   ├── js/
+│   │   │   ├── app.js
+│   │   │   └── map_viewer.js
+│   │   └── uploads/
+│   │       └── bc0586eb-8337-44c8-8a85-3b0446d2ce65_r.-1.0.mca
+│   └── templates/
+│       ├── base.html
+│       ├── dashboard.html
+│       ├── index.html
+│       ├── map_list.html
+│       ├── map_viewer.html
+│       ├── upload.html
+│       └── errors/
+│           ├── 404.html
+│           └── 500.html
+├── config/
+│   ├── celery_config.py
+│   ├── config.py
+├── instance/
+│   ├── craftne.db
+│   └── cache/
+│   └── logs/
+│       ├── app.log
+│       └── error.log
+├── migrations/
+│   ├── alembic.ini
+│   ├── env.py
+│   ├── README
+│   ├── script.py.mako
+│   └── versions/
+│       ├── 21739f9c973c_initial_migration.py
+│       └── 520933ad24f8_add_map_data_id_foreign_key_to_training_.py
+├── models_cache/
+│   ├── map_data_1.json
+│   └── threejs_data_1.json
+├── training_data/
+├── celery_worker.py
+├── project_structure.txt
+├── README.md
+├── requirements.txt
+├── run.py

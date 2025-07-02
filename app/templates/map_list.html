@@ -1,0 +1,327 @@
+{% extends "base.html" %}
+
+{% block title %}地图列表 - CraftNE{% endblock %}
+
+{% block head %}
+<style>
+.map-card {
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    padding: 15px;
+    margin-bottom: 15px;
+    transition: box-shadow 0.3s;
+}
+
+.map-card:hover {
+    box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+}
+
+.map-thumbnail {
+    width: 100px;
+    height: 100px;
+    background: linear-gradient(45deg, #87CEEB, #98FB98);
+    border-radius: 5px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    font-weight: bold;
+}
+
+.map-info {
+    flex: 1;
+    margin-left: 15px;
+}
+
+.map-title {
+    font-size: 1.2em;
+    font-weight: bold;
+    margin-bottom: 5px;
+}
+
+.map-details {
+    color: #666;
+    font-size: 0.9em;
+}
+
+.map-actions {
+    display: flex;
+    gap: 10px;
+    margin-top: 10px;
+}
+
+.pagination-wrapper {
+    display: flex;
+    justify-content: center;
+    margin-top: 30px;
+}
+
+.btn-view {
+    background-color: #007bff;
+    color: white;
+    border: none;
+    padding: 8px 16px;
+    border-radius: 4px;
+    text-decoration: none;
+    display: inline-block;
+}
+
+.btn-view:hover {
+    background-color: #0056b3;
+    color: white;
+    text-decoration: none;
+}
+
+.btn-delete {
+    background-color: #dc3545;
+    color: white;
+    border: none;
+    padding: 8px 16px;
+    border-radius: 4px;
+    cursor: pointer;
+}
+
+.btn-delete:hover {
+    background-color: #c82333;
+}
+
+.btn-delete:disabled {
+    background-color: #6c757d;
+    cursor: not-allowed;
+}
+
+.empty-state {
+    text-align: center;
+    padding: 60px 20px;
+    color: #666;
+}
+
+.empty-state i {
+    font-size: 4em;
+    margin-bottom: 20px;
+    color: #ddd;
+}
+
+/* 删除确认模态框样式 */
+.modal-header {
+    background-color: #dc3545;
+    color: white;
+}
+
+.modal-header .btn-close {
+    filter: invert(1);
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="row">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h2>
+                    <i class="fas fa-map"></i>
+                    地图列表
+                </h2>
+                <div>
+                    <a href="{{ url_for('upload.upload_page') }}" class="btn btn-primary">
+                        <i class="fas fa-plus"></i>
+                        上传新地图
+                    </a>
+                </div>
+            </div>
+
+            {% if maps.items %}
+                <!-- 地图列表 -->
+                {% for map_data in maps.items %}
+                <div class="map-card">
+                    <div class="d-flex">
+                        <div class="map-thumbnail">
+                            <i class="fas fa-cube fa-2x"></i>
+                        </div>
+                        <div class="map-info">
+                            <div class="map-title">{{ map_data.filename }}</div>
+                            <div class="map-details">
+                                <div><i class="fas fa-calendar"></i> 上传时间: {{ map_data.created_at.strftime('%Y-%m-%d %H:%M') }}</div>
+                                {% if map_data.chunk_count %}
+                                <div><i class="fas fa-cubes"></i> 区块数量: {{ map_data.chunk_count }}</div>
+                                {% endif %}
+                                {% if map_data.file_size %}
+                                <div><i class="fas fa-file"></i> 文件大小: {{ "%.2f"|format(map_data.file_size / 1024 / 1024) }} MB</div>
+                                {% endif %}
+                            </div>
+                            <div class="map-actions">
+                                <a href="{{ url_for('main.map_viewer', map_id=map_data.id) }}" class="btn-view">
+                                    <i class="fas fa-eye"></i>
+                                    查看地图
+                                </a>
+                                <button class="btn-delete" onclick="confirmDelete({{ map_data.id }}, '{{ map_data.original_filename }}')">
+                                    <i class="fas fa-trash"></i>
+                                    删除
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+
+                <!-- 分页 -->
+                {% if maps.pages > 1 %}
+                <div class="pagination-wrapper">
+                    <nav aria-label="地图列表分页">
+                        <ul class="pagination">
+                            {% if maps.has_prev %}
+                            <li class="page-item">
+                                <a class="page-link" href="{{ url_for('main.map_list', page=maps.prev_num) }}">上一页</a>
+                            </li>
+                            {% else %}
+                            <li class="page-item disabled">
+                                <span class="page-link">上一页</span>
+                            </li>
+                            {% endif %}
+
+                            {% for page_num in maps.iter_pages() %}
+                                {% if page_num %}
+                                    {% if page_num != maps.page %}
+                                    <li class="page-item">
+                                        <a class="page-link" href="{{ url_for('main.map_list', page=page_num) }}">{{ page_num }}</a>
+                                    </li>
+                                    {% else %}
+                                    <li class="page-item active">
+                                        <span class="page-link">{{ page_num }}</span>
+                                    </li>
+                                    {% endif %}
+                                {% else %}
+                                <li class="page-item disabled">
+                                    <span class="page-link">…</span>
+                                </li>
+                                {% endif %}
+                            {% endfor %}
+
+                            {% if maps.has_next %}
+                            <li class="page-item">
+                                <a class="page-link" href="{{ url_for('main.map_list', page=maps.next_num) }}">下一页</a>
+                            </li>
+                            {% else %}
+                            <li class="page-item disabled">
+                                <span class="page-link">下一页</span>
+                            </li>
+                            {% endif %}
+                        </ul>
+                    </nav>
+                </div>
+                {% endif %}
+
+            {% else %}
+                <!-- 空状态 -->
+                <div class="empty-state">
+                    <i class="fas fa-map"></i>
+                    <h4>暂无已解析的地图</h4>
+                    <p>您还没有上传任何已解析的地图文件。</p>
+                    <a href="{{ url_for('upload.upload_page') }}" class="btn btn-primary btn-lg">
+                        <i class="fas fa-plus"></i>
+                        上传第一个地图
+                    </a>
+                </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<!-- 删除确认模态框 -->
+<div class="modal fade" id="deleteConfirmModal" tabindex="-1" aria-labelledby="deleteConfirmModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="deleteConfirmModalLabel">
+                    <i class="fas fa-exclamation-triangle"></i>
+                    确认删除
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <p>您确定要删除地图 <strong id="mapNameToDelete"></strong> 吗？</p>
+                <p class="text-warning">
+                    <i class="fas fa-warning"></i>
+                    此操作将删除：
+                </p>
+                <ul class="text-muted">
+                    <li>原始MCA文件</li>
+                    <li>解析后的数据缓存</li>
+                    <li>相关的标注数据</li>
+                    <li>关联的训练任务</li>
+                </ul>
+                <p class="text-danger">
+                    <strong>此操作无法撤销！</strong>
+                </p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                <form id="deleteForm" method="POST" style="display: inline;">
+                    <button type="submit" class="btn btn-danger">
+                        <i class="fas fa-trash"></i>
+                        确认删除
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+let mapIdToDelete = null;
+
+function confirmDelete(mapId, mapName) {
+    mapIdToDelete = mapId;
+    document.getElementById('mapNameToDelete').textContent = mapName;
+    document.getElementById('deleteForm').action = `/maps/${mapId}/delete`;
+
+    // 显示模态框
+    const modal = new bootstrap.Modal(document.getElementById('deleteConfirmModal'));
+    modal.show();
+}
+
+// 处理删除操作
+document.getElementById('deleteForm').addEventListener('submit', function(e) {
+    e.preventDefault();
+
+    if (!mapIdToDelete) return;
+
+    const form = this;
+    const submitBtn = form.querySelector('button[type="submit"]');
+    const originalText = submitBtn.innerHTML;
+
+    // 显示加载状态
+    submitBtn.disabled = true;
+    submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 删除中...';
+
+    // 使用AJAX删除（可选，或者直接提交表单）
+    fetch(`/api/maps/${mapIdToDelete}`, {
+        method: 'DELETE',
+        headers: {
+            'Content-Type': 'application/json',
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            // 成功删除，刷新页面
+            window.location.reload();
+        } else {
+            // 删除失败，显示错误信息
+            alert('删除失败: ' + data.message);
+            submitBtn.disabled = false;
+            submitBtn.innerHTML = originalText;
+        }
+    })
+    .catch(error => {
+        console.error('删除操作失败:', error);
+        alert('删除操作失败，请稍后重试');
+        submitBtn.disabled = false;
+        submitBtn.innerHTML = originalText;
+    });
+});
+</script>
+{% endblock %}

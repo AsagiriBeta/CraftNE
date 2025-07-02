@@ -1,0 +1,27 @@
+{% extends "base.html" %}
+
+{% block title %}页面未找到 - CraftNE{% endblock %}
+
+{% block content %}
+<div class="container mt-5">
+    <div class="row justify-content-center">
+        <div class="col-md-6 text-center">
+            <div class="error-template">
+                <h1 class="display-1">404</h1>
+                <h2>页面未找到</h2>
+                <div class="error-details mt-3">
+                    抱歉，您访问的页面不存在或已被移动。
+                </div>
+                <div class="error-actions mt-4">
+                    <a href="{{ url_for('main.index') }}" class="btn btn-primary">
+                        <i class="fas fa-home"></i> 返回首页
+                    </a>
+                    <a href="javascript:history.back()" class="btn btn-secondary">
+                        <i class="fas fa-arrow-left"></i> 返回上页
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

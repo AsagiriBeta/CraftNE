@@ -1,0 +1,27 @@
+{% extends "base.html" %}
+
+{% block title %}服务器错误 - CraftNE{% endblock %}
+
+{% block content %}
+<div class="container mt-5">
+    <div class="row justify-content-center">
+        <div class="col-md-6 text-center">
+            <div class="error-template">
+                <h1 class="display-1">500</h1>
+                <h2>服务器内部错误</h2>
+                <div class="error-details mt-3">
+                    抱歉，服务器遇到了内部错误，无法完成您的请求。
+                </div>
+                <div class="error-actions mt-4">
+                    <a href="{{ url_for('main.index') }}" class="btn btn-primary">
+                        <i class="fas fa-home"></i> 返回首页
+                    </a>
+                    <a href="javascript:location.reload()" class="btn btn-secondary">
+                        <i class="fas fa-refresh"></i> 重新加载
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

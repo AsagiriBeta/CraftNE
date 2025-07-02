@@ -1,0 +1,182 @@
+{% extends "base.html" %}
+
+{% block title %}首页 - CraftNE{% endblock %}
+
+{% block content %}
+<div class="hero-section bg-gradient-primary text-white py-5 mb-5">
+    <div class="container">
+        <div class="row align-items-center">
+            <div class="col-lg-6">
+                <h1 class="display-4 fw-bold mb-4">CraftNE</h1>
+                <p class="lead mb-4">Minecraft地图处理和AI训练平台</p>
+                <p class="mb-4">使用先进的AI技术分析、标注和生成Minecraft地图，支持3D可视化和智能标注。</p>
+                <div class="d-flex gap-3">
+                    <a href="{{ url_for('upload.upload_page') }}" class="btn btn-light btn-lg">
+                        <i class="fas fa-upload me-2"></i>开始上传
+                    </a>
+                    <a href="{{ url_for('main.dashboard') }}" class="btn btn-outline-light btn-lg">
+                        <i class="fas fa-chart-line me-2"></i>查看仪表板
+                    </a>
+                </div>
+            </div>
+            <div class="col-lg-6">
+                <div class="hero-image">
+                    <i class="fas fa-cube fa-10x opacity-75"></i>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="container">
+    <div class="row">
+        <div class="col-lg-4 mb-4">
+            <div class="card h-100">
+                <div class="card-body text-center">
+                    <div class="mb-3">
+                        <i class="fas fa-file-upload fa-3x text-primary"></i>
+                    </div>
+                    <h5 class="card-title">MCA文件解析</h5>
+                    <p class="card-text">支持上传和解析Minecraft区块文件（.mca），提取3D地图数据。</p>
+                    <a href="{{ url_for('upload.upload_page') }}" class="btn btn-primary">立即上传</a>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-4 mb-4">
+            <div class="card h-100">
+                <div class="card-body text-center">
+                    <div class="mb-3">
+                        <i class="fas fa-cube fa-3x text-success"></i>
+                    </div>
+                    <h5 class="card-title">3D可视化</h5>
+                    <p class="card-text">基于Three.js的交互式3D地图预览，支持旋转、缩放和导航。</p>
+                    <a href="/maps" class="btn btn-success">查看地图</a>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-4 mb-4">
+            <div class="card h-100">
+                <div class="card-body text-center">
+                    <div class="mb-3">
+                        <i class="fas fa-tags fa-3x text-warning"></i>
+                    </div>
+                    <h5 class="card-title">智能标注</h5>
+                    <p class="card-text">在3D环境中进行区域标注，为AI训练准备高质量数据集。</p>
+                    <a href="/annotation" class="btn btn-warning">开始标注</a>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-4 mb-4">
+            <div class="card h-100">
+                <div class="card-body text-center">
+                    <div class="mb-3">
+                        <i class="fas fa-robot fa-3x text-info"></i>
+                    </div>
+                    <h5 class="card-title">AI训练</h5>
+                    <p class="card-text">使用深度学习模型训练，支持3D扩散模型和生成对抗网络。</p>
+                    <a href="/training" class="btn btn-info">开始训练</a>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-4 mb-4">
+            <div class="card h-100">
+                <div class="card-body text-center">
+                    <div class="mb-3">
+                        <i class="fas fa-magic fa-3x text-danger"></i>
+                    </div>
+                    <h5 class="card-title">地图生成</h5>
+                    <p class="card-text">通过文本描述生成新的Minecraft地图，支持多种风格和主题。</p>
+                    <a href="/generation" class="btn btn-danger">生成地图</a>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-4 mb-4">
+            <div class="card h-100">
+                <div class="card-body text-center">
+                    <div class="mb-3">
+                        <i class="fas fa-chart-bar fa-3x text-secondary"></i>
+                    </div>
+                    <h5 class="card-title">数据分析</h5>
+                    <p class="card-text">丰富的统计图表和可视化分析，深入了解地图特征。</p>
+                    <a href="{{ url_for('main.dashboard') }}" class="btn btn-secondary">查看分析</a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 最新动态 -->
+    <div class="row mt-5">
+        <div class="col-12">
+            <h2 class="mb-4">最新动态</h2>
+            <div class="row" id="recent-activity">
+                <div class="col-12">
+                    <div class="text-center py-4">
+                        <div class="spinner-border" role="status">
+                            <span class="visually-hidden">Loading...</span>
+                        </div>
+                        <p class="mt-2">正在加载最新动态...</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+$(document).ready(function() {
+    // 加载最新统计数据
+    loadRecentActivity();
+});
+
+function loadRecentActivity() {
+    $.get('/api/stats')
+        .done(function(data) {
+            const activityHtml = `
+                <div class="col-md-3 mb-3">
+                    <div class="card text-center">
+                        <div class="card-body">
+                            <h3 class="text-primary">${data.total_maps}</h3>
+                            <p class="mb-0">总地图数</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3 mb-3">
+                    <div class="card text-center">
+                        <div class="card-body">
+                            <h3 class="text-success">${data.parsed_maps}</h3>
+                            <p class="mb-0">已解析地图</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3 mb-3">
+                    <div class="card text-center">
+                        <div class="card-body">
+                            <h3 class="text-warning">${data.pending_maps}</h3>
+                            <p class="mb-0">待处理地图</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3 mb-3">
+                    <div class="card text-center">
+                        <div class="card-body">
+                            <h3 class="text-info">${data.total_annotations}</h3>
+                            <p class="mb-0">标注数量</p>
+                        </div>
+                    </div>
+                </div>
+            `;
+            $('#recent-activity').html(activityHtml);
+        })
+        .fail(function() {
+            $('#recent-activity').html('<div class="col-12 text-center"><p class="text-muted">暂无数据</p></div>');
+        });
+}
+</script>
+{% endblock %}

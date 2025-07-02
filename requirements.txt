@@ -1,0 +1,36 @@
+# Web框架
+Flask==3.1.0
+Flask-SQLAlchemy==3.1.1
+Flask-Migrate==4.1.0
+
+# 任务队列
+Celery==5.5.3
+Redis==6.2.0
+
+# 数据处理
+numpy==2.3.1
+pandas==2.3.0
+
+# AI/ML
+torch==2.7.1
+torchvision==0.22.1
+diffusers==0.34.0
+transformers==4.53.0
+scikit-learn==1.6.1
+threadpoolctl==3.6.0
+accelerate==1.8.1
+safetensors==0.5.3
+
+# Minecraft文件处理
+mcapy==0.9.1
+
+# 工具库
+Pillow==11.3.0
+python-dotenv==1.1.1
+gunicorn==23.0.0
+
+# 开发工具
+pytest==8.4.1
+pytest-flask==1.3.0
+black==25.1.0
+flake8==7.3.0
